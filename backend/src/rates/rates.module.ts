@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, Logger } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
 import { redisStore } from 'cache-manager-redis-yet';
 import { RatesController } from './rates.controller';
@@ -44,8 +44,15 @@ import { YahooFinanceAdapter } from './providers/yahoofinance.adapter';
           };
         }
 
+        const store = await redisStore(redisConfig);
+        
+        // Attach error listener to prevent process crashes on network resets / socket closures
+        store.client.on('error', (err) => {
+          Logger.error(`Cache Redis Client Error: ${err.message}`, 'CacheModule');
+        });
+
         return {
-          store: await redisStore(redisConfig),
+          store,
         };
       },
     }),
