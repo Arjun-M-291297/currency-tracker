@@ -15,6 +15,9 @@ import { YahooFinanceAdapter } from './providers/yahoofinance.adapter';
     CacheModule.registerAsync({
       useFactory: async () => {
         let redisConfig: any = {};
+        const isTls = process.env.REDIS_TLS === 'true' || 
+                      process.env.REDIS_URL?.startsWith('rediss:') || 
+                      process.env.REDIS_HOST?.includes('upstash.io');
 
         if (process.env.REDIS_URL) {
           try {
@@ -24,7 +27,7 @@ import { YahooFinanceAdapter } from './providers/yahoofinance.adapter';
               socket: {
                 host: parsed.hostname,
                 port: parseInt(parsed.port || '6379', 10),
-                tls: parsed.protocol === 'rediss:' ? {} : undefined,
+                tls: isTls ? { rejectUnauthorized: false } : undefined,
               },
               username: parsed.username || undefined,
               password: decodeURIComponent(parsed.password || ''),
@@ -38,6 +41,7 @@ import { YahooFinanceAdapter } from './providers/yahoofinance.adapter';
             socket: {
               host: process.env.REDIS_HOST || '127.0.0.1',
               port: parseInt(process.env.REDIS_PORT || '6379', 10),
+              tls: isTls ? { rejectUnauthorized: false } : undefined,
             },
             password: process.env.REDIS_PASSWORD || undefined,
           };
@@ -50,7 +54,10 @@ import { YahooFinanceAdapter } from './providers/yahoofinance.adapter';
           Logger.error(`Cache Redis Client Error: ${err.message}`, 'CacheModule');
         });
 
-        await client.connect();
+        // Connect in the background without blocking NestJS bootstrap / port binding
+        client.connect().catch((err) => {
+          Logger.error(`Initial Cache Redis Connection Failed: ${err.message}`, 'CacheModule');
+        });
 
         const store = redisInsStore(client as any, { ttl: 300000 });
 

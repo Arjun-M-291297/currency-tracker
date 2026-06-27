@@ -32,6 +32,10 @@ import { Alert } from './alerts/entities/alert.entity';
     ),
     BullModule.forRoot({
       connection: (() => {
+        const isTls = process.env.REDIS_TLS === 'true' || 
+                      process.env.REDIS_URL?.startsWith('rediss:') || 
+                      process.env.REDIS_HOST?.includes('upstash.io');
+
         if (process.env.REDIS_URL) {
           try {
             const parsed = new URL(process.env.REDIS_URL);
@@ -40,7 +44,7 @@ import { Alert } from './alerts/entities/alert.entity';
               port: parseInt(parsed.port || '6379', 10),
               username: parsed.username || undefined,
               password: decodeURIComponent(parsed.password || ''),
-              tls: parsed.protocol === 'rediss:' ? {} : undefined,
+              tls: isTls ? { rejectUnauthorized: false } : undefined,
             };
           } catch (err) {
             // fallback
@@ -50,6 +54,7 @@ import { Alert } from './alerts/entities/alert.entity';
           host: process.env.REDIS_HOST || '127.0.0.1',
           port: parseInt(process.env.REDIS_PORT || '6379', 10),
           password: process.env.REDIS_PASSWORD || undefined,
+          tls: isTls ? { rejectUnauthorized: false } : undefined,
         };
       })(),
     }),
