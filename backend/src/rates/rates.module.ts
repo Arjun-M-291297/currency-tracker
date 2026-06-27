@@ -12,23 +12,42 @@ import { YahooFinanceAdapter } from './providers/yahoofinance.adapter';
 @Module({
   imports: [
     CacheModule.registerAsync({
-      useFactory: async () => ({
-        store: await redisStore(
-          process.env.REDIS_URL
-            ? {
-                url: process.env.REDIS_URL,
-                ttl: 300000,
-              }
-            : {
-                socket: {
-                  host: process.env.REDIS_HOST || '127.0.0.1',
-                  port: parseInt(process.env.REDIS_PORT || '6379', 10),
-                },
-                password: process.env.REDIS_PASSWORD || undefined,
-                ttl: 300000,
+      useFactory: async () => {
+        let redisConfig: any = {
+          ttl: 300000,
+        };
+
+        if (process.env.REDIS_URL) {
+          try {
+            const parsed = new URL(process.env.REDIS_URL);
+            redisConfig = {
+              ...redisConfig,
+              socket: {
+                host: parsed.hostname,
+                port: parseInt(parsed.port || '6379', 10),
+                tls: parsed.protocol === 'rediss:' ? {} : undefined,
               },
-        ),
-      }),
+              username: parsed.username || undefined,
+              password: decodeURIComponent(parsed.password || ''),
+            };
+          } catch (err) {
+            // fallback
+          }
+        } else {
+          redisConfig = {
+            ...redisConfig,
+            socket: {
+              host: process.env.REDIS_HOST || '127.0.0.1',
+              port: parseInt(process.env.REDIS_PORT || '6379', 10),
+            },
+            password: process.env.REDIS_PASSWORD || undefined,
+          };
+        }
+
+        return {
+          store: await redisStore(redisConfig),
+        };
+      },
     }),
   ],
   controllers: [RatesController],
