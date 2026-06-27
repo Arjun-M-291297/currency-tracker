@@ -12,7 +12,13 @@ const mockData = [
   { time: '16:00', rate: 24.62 },
 ];
 
-const getApiBase = () => `http://${window.location.hostname}:3000`;
+const getApiBase = () => {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
+  if (typeof window === 'undefined') return 'http://localhost:3000';
+  return `http://${window.location.hostname}:3000`;
+};
 
 export default function Dashboard() {
   const [base, setBase] = useState('AED');

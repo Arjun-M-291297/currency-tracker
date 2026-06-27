@@ -23,6 +23,9 @@ type Alert = {
 type AlertWithRate = Alert & { currentRate?: number; loading?: boolean };
 
 function getApiBase() {
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    return process.env.NEXT_PUBLIC_API_URL;
+  }
   if (typeof window === 'undefined') return 'http://localhost:3000';
   return `http://${window.location.hostname}:3000`;
 }

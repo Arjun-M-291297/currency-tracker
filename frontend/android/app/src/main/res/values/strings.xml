@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Currency Tracker</string>
+    <string name="title_activity_main">Currency Tracker</string>
+    <string name="package_name">com.arjun.currencyapp</string>
+    <string name="custom_url_scheme">com.arjun.currencyapp</string>
+</resources>
