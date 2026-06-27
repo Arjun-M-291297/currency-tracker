@@ -1,6 +1,7 @@
 import { Module, Logger } from '@nestjs/common';
 import { CacheModule } from '@nestjs/cache-manager';
-import { redisStore } from 'cache-manager-redis-yet';
+import { redisInsStore } from 'cache-manager-redis-yet';
+import { createClient } from 'redis';
 import { RatesController } from './rates.controller';
 import { RatesService } from './rates.service';
 import { ExchangeRateHostAdapter } from './providers/exchangerate-host.adapter';
@@ -13,9 +14,7 @@ import { YahooFinanceAdapter } from './providers/yahoofinance.adapter';
   imports: [
     CacheModule.registerAsync({
       useFactory: async () => {
-        let redisConfig: any = {
-          ttl: 300000,
-        };
+        let redisConfig: any = {};
 
         if (process.env.REDIS_URL) {
           try {
@@ -44,12 +43,16 @@ import { YahooFinanceAdapter } from './providers/yahoofinance.adapter';
           };
         }
 
-        const store = await redisStore(redisConfig);
-        
-        // Attach error listener to prevent process crashes on network resets / socket closures
-        store.client.on('error', (err) => {
+        const client = createClient(redisConfig);
+
+        // Attach error listener IMMEDIATELY before client connection is established
+        client.on('error', (err) => {
           Logger.error(`Cache Redis Client Error: ${err.message}`, 'CacheModule');
         });
+
+        await client.connect();
+
+        const store = redisInsStore(client as any, { ttl: 300000 });
 
         return {
           store,
