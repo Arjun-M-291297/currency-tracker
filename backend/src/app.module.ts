@@ -31,13 +31,27 @@ import { Alert } from './alerts/entities/alert.entity';
           },
     ),
     BullModule.forRoot({
-      connection: process.env.REDIS_URL
-        ? { url: process.env.REDIS_URL }
-        : {
-            host: process.env.REDIS_HOST || '127.0.0.1',
-            port: parseInt(process.env.REDIS_PORT || '6379', 10),
-            password: process.env.REDIS_PASSWORD || undefined,
-          },
+      connection: (() => {
+        if (process.env.REDIS_URL) {
+          try {
+            const parsed = new URL(process.env.REDIS_URL);
+            return {
+              host: parsed.hostname,
+              port: parseInt(parsed.port || '6379', 10),
+              username: parsed.username || undefined,
+              password: decodeURIComponent(parsed.password || ''),
+              tls: parsed.protocol === 'rediss:' ? {} : undefined,
+            };
+          } catch (err) {
+            // fallback
+          }
+        }
+        return {
+          host: process.env.REDIS_HOST || '127.0.0.1',
+          port: parseInt(process.env.REDIS_PORT || '6379', 10),
+          password: process.env.REDIS_PASSWORD || undefined,
+        };
+      })(),
     }),
     RatesModule,
     AlertsModule,
