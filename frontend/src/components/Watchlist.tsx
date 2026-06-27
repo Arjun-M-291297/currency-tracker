@@ -5,6 +5,8 @@ import {
   Plus, Trash2, TrendingUp, TrendingDown, BellRing, BellOff,
   RefreshCw, AlertCircle, CheckCircle2, X
 } from 'lucide-react';
+import CurrencySelector from './CurrencySelector';
+import { getFcmToken } from '@/lib/firebase';
 
 const CURRENCIES = ['AED', 'USD', 'EUR', 'INR', 'GBP', 'JPY', 'CAD', 'AUD', 'CHF', 'SGD'];
 
@@ -39,6 +41,48 @@ export default function Watchlist() {
     threshold: '',
     condition: 'above' as 'above' | 'below',
   });
+
+  const [fcmToken, setFcmToken] = useState<string | null>(null);
+  const [fcmStatus, setFcmStatus] = useState<'loading' | 'enabled' | 'denied' | 'unsupported' | 'mock'>('loading');
+
+  // ── Initialize FCM ─────────────────────────────────────────────────
+  useEffect(() => {
+    const initFcm = async () => {
+      if (typeof window === 'undefined') return;
+      if (!('Notification' in window)) {
+        setFcmStatus('unsupported');
+        return;
+      }
+
+      if (Notification.permission === 'denied') {
+        setFcmStatus('denied');
+        return;
+      }
+
+      const hasConfig = process.env.NEXT_PUBLIC_FIREBASE_API_KEY && 
+                        process.env.NEXT_PUBLIC_FIREBASE_API_KEY !== 'your-api-key';
+
+      if (!hasConfig) {
+        setFcmStatus('mock');
+        return;
+      }
+
+      try {
+        const token = await getFcmToken();
+        if (token) {
+          setFcmToken(token);
+          setFcmStatus('enabled');
+        } else {
+          setFcmStatus('denied');
+        }
+      } catch (err) {
+        console.error('Failed to init FCM:', err);
+        setFcmStatus('mock');
+      }
+    };
+
+    initFcm();
+  }, []);
 
   // ── Fetch current live rate for each alert ─────────────────────────
   const fetchLiveRates = async (alertList: Alert[]) => {
@@ -160,6 +204,7 @@ export default function Watchlist() {
           target: form.target,
           threshold: Number(form.threshold),
           condition: form.condition,
+          fcmToken: fcmToken || undefined,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -229,6 +274,39 @@ export default function Watchlist() {
             <Plus size={24} />
           </button>
         </div>
+      </div>
+
+      {/* Notification status banner */}
+      <div className="mb-4 text-xs flex items-center justify-between px-3 py-2.5 rounded-xl bg-gray-500/5 dark:bg-white/5 border border-gray-250/10 dark:border-white/5 text-gray-650 dark:text-gray-400">
+        <span className="flex items-center gap-1.5 font-medium">
+          <span className={`w-2 h-2 rounded-full ${
+            fcmStatus === 'enabled' ? 'bg-emerald-500 shadow-sm' :
+            fcmStatus === 'mock' ? 'bg-amber-500 animate-pulse' :
+            fcmStatus === 'loading' ? 'bg-blue-500 animate-pulse' :
+            'bg-red-500'
+          }`} />
+          Push Notifications: {
+            fcmStatus === 'enabled' ? 'Enabled' :
+            fcmStatus === 'mock' ? 'Mock Mode (Local)' :
+            fcmStatus === 'loading' ? 'Checking status...' :
+            fcmStatus === 'unsupported' ? 'Unsupported browser' :
+            'Permission Denied'
+          }
+        </span>
+        {fcmStatus === 'denied' && (
+          <button 
+            onClick={async () => {
+              const token = await getFcmToken();
+              if (token) {
+                setFcmToken(token);
+                setFcmStatus('enabled');
+              }
+            }}
+            className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-305 hover:underline font-semibold cursor-pointer"
+          >
+            Enable
+          </button>
+        )}
       </div>
 
       {/* Error banner */}
@@ -381,25 +459,25 @@ export default function Watchlist() {
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
                     From
                   </label>
-                  <select
+                  <CurrencySelector
                     value={form.base}
-                    onChange={(e) => setForm({ ...form, base: e.target.value })}
-                    className="w-full bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 font-bold text-gray-800 dark:text-gray-100 outline-none focus:ring-2 ring-blue-500/50 cursor-pointer"
-                  >
-                    {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                    onChange={(val) => setForm({ ...form, base: val })}
+                    exclude={form.target}
+                    currencies={CURRENCIES}
+                    wFull
+                  />
                 </div>
                 <div className="flex-1">
                   <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1 block">
                     To
                   </label>
-                  <select
+                  <CurrencySelector
                     value={form.target}
-                    onChange={(e) => setForm({ ...form, target: e.target.value })}
-                    className="w-full bg-gray-100 dark:bg-gray-800 rounded-xl px-4 py-3 font-bold text-gray-800 dark:text-gray-100 outline-none focus:ring-2 ring-blue-500/50 cursor-pointer"
-                  >
-                    {CURRENCIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                    onChange={(val) => setForm({ ...form, target: val })}
+                    exclude={form.base}
+                    currencies={CURRENCIES}
+                    wFull
+                  />
                 </div>
               </div>
 

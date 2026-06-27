@@ -18,6 +18,7 @@ class CreateAlertDto {
   threshold: number;
   condition: 'above' | 'below';
   chatId?: string;
+  fcmToken?: string;
 }
 
 @Controller('alerts')
@@ -42,6 +43,7 @@ export class AlertsController {
       threshold: dto.threshold,
       condition: dto.condition,
       chatId: dto.chatId || 'web',
+      fcmToken: dto.fcmToken,
       isActive: true,
     });
   }

@@ -18,6 +18,15 @@ export class RatesController {
     };
   }
 
+  @Get('history')
+  async getHistory(
+    @Query('base') base: string = 'USD',
+    @Query('target') target: string = 'INR',
+    @Query('range') range: string = '1M',
+  ) {
+    return this.ratesService.getHistoricalRates(base, target, range);
+  }
+
   @Get('refresh')
   async refreshRates(
     @Query('base') base: string = 'USD',

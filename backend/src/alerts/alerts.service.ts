@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Alert } from './entities/alert.entity';
@@ -15,6 +15,25 @@ export class AlertsService {
   ) {}
 
   async createAlert(data: Partial<Alert>): Promise<Alert> {
+    let existingCount = 0;
+    if (data.fcmToken) {
+      existingCount = await this.alertRepository.count({
+        where: { fcmToken: data.fcmToken, isActive: true },
+      });
+    } else if (data.chatId && data.chatId !== 'web') {
+      existingCount = await this.alertRepository.count({
+        where: { chatId: data.chatId, isActive: true },
+      });
+    } else {
+      existingCount = await this.alertRepository.count({
+        where: { chatId: 'web', isActive: true },
+      });
+    }
+
+    if (existingCount >= 5) {
+      throw new BadRequestException('You have reached the limit of 5 active alerts.');
+    }
+
     const alert = this.alertRepository.create(data);
     return this.alertRepository.save(alert);
   }

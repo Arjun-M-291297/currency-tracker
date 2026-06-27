@@ -1,8 +1,10 @@
 import { Processor, WorkerHost } from '@nestjs/bullmq';
 import { Job } from 'bullmq';
-import { Logger } from '@nestjs/common';
+import { Logger, Inject, forwardRef } from '@nestjs/common';
 import { RatesService } from '../rates/rates.service';
 import { AlertsService } from './alerts.service';
+import { BotService } from '../bot/bot.service';
+import { FcmService } from './fcm.service';
 
 @Processor('alerts')
 export class AlertsProcessor extends WorkerHost {
@@ -11,6 +13,9 @@ export class AlertsProcessor extends WorkerHost {
   constructor(
     private readonly ratesService: RatesService,
     private readonly alertsService: AlertsService,
+    @Inject(forwardRef(() => BotService))
+    private readonly botService: BotService,
+    private readonly fcmService: FcmService,
   ) {
     super();
   }
@@ -44,8 +49,25 @@ export class AlertsProcessor extends WorkerHost {
               (alert.condition === 'below' && currentRate < alert.threshold);
 
             if (isTriggered) {
-              this.logger.log(`Alert triggered! ${alert.base} to ${alert.target} is ${currentRate} (threshold: ${alert.threshold} ${alert.condition})`);
-              // TODO: enqueue notification job or send directly via Telegram Bot
+              const alertMsg = `Alert triggered! ${alert.base}/${alert.target} is currently ${currentRate} (Threshold: ${alert.condition} ${alert.threshold})`;
+              this.logger.log(alertMsg);
+
+              // 1. Send push notification to mobile via FCM
+              if (alert.fcmToken) {
+                await this.fcmService.sendPushNotification(
+                  alert.fcmToken,
+                  `Price Alert: ${alert.base}/${alert.target}`,
+                  `The rate has gone ${alert.condition} ${alert.threshold} and is currently ${currentRate}.`
+                );
+              }
+
+              // 2. Send message via Telegram Bot (if valid chatId exists and is not web default)
+              if (alert.chatId && alert.chatId !== 'web') {
+                await this.botService.sendMessage(alert.chatId, alertMsg);
+              }
+
+              // 3. Deactivate the alert so it only triggers once
+              await this.alertsService.toggleAlert(alert.id);
             }
           }
         } catch (error) {

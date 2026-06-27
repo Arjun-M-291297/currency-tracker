@@ -1,4 +1,4 @@
-import { Module, OnModuleInit } from '@nestjs/common';
+import { Module, OnModuleInit, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { BullModule, InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
@@ -7,6 +7,8 @@ import { AlertsService } from './alerts.service';
 import { AlertsProcessor } from './alerts.processor';
 import { AlertsController } from './alerts.controller';
 import { RatesModule } from '../rates/rates.module';
+import { FcmService } from './fcm.service';
+import { BotModule } from '../bot/bot.module';
 
 @Module({
   imports: [
@@ -15,10 +17,11 @@ import { RatesModule } from '../rates/rates.module';
       name: 'alerts',
     }),
     RatesModule,
+    forwardRef(() => BotModule),
   ],
   controllers: [AlertsController],
-  providers: [AlertsService, AlertsProcessor],
-  exports: [AlertsService],
+  providers: [AlertsService, AlertsProcessor, FcmService],
+  exports: [AlertsService, FcmService],
 })
 export class AlertsModule implements OnModuleInit {
   constructor(@InjectQueue('alerts') private alertsQueue: Queue) {}

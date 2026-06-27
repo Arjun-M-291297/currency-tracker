@@ -8,6 +8,9 @@ export class Alert {
   @Column()
   chatId: string;
 
+  @Column({ nullable: true })
+  fcmToken: string;
+
   @Column()
   base: string;
 

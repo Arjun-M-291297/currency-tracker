@@ -87,4 +87,17 @@ export class BotService implements OnModuleInit {
     this.bot.launch();
     this.logger.log('Telegram bot started.');
   }
+
+  async sendMessage(chatId: string, text: string): Promise<void> {
+    if (this.bot) {
+      try {
+        await this.bot.telegram.sendMessage(chatId, text);
+        this.logger.log(`Telegram message sent to ${chatId}`);
+      } catch (error) {
+        this.logger.error(`Failed to send Telegram message to ${chatId}: ${error.message}`);
+      }
+    } else {
+      this.logger.warn(`Cannot send Telegram message to ${chatId}: Bot is not initialized.`);
+    }
+  }
 }
